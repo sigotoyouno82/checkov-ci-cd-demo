@@ -26,5 +26,8 @@ jobs:
       - name: Install Checkov
         run: pip install checkov
 
+      - name: Export custom check directory
+        run: export BC_CUSTOM_CHECK_DIR=./custom_checks
+
       - name: Run Checkov
-        run: checkov -d . --quiet
+        run: checkov -d . --check CUSTOM_001
