@@ -26,8 +26,11 @@ jobs:
       - name: Install Checkov
         run: pip install checkov
 
-      - name: Run Checkov
-        run: checkov -d . --quiet
+      - name: Export custom check directory
+        run: export BC_CUSTOM_CHECK_DIR=./custom_checks
 
       - name: Run Checkov
-        run: checkov -d . --quiet --skip-check CKV_AWS_144,CKV_AWS_18,CKV2_AWS_62,CKV2_AWS_6,CKV_AWS_18,CKV_AWS_144,CKV_AWS_145,CKV_AWS_21,CKV2_AWS_61,
+        run: checkov -d . --check CUSTOM_001
+
+      - name: Run Checkov
+        run: checkov -d . --quiet
