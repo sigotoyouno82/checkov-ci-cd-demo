@@ -8,9 +8,12 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   check-security:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,6 +25,9 @@ jobs:
 
       - name: Install Checkov
         run: pip install checkov
+
+      - name: Run Checkov
+        run: checkov -d . --quiet
 
       - name: Run Checkov
         run: checkov -d . --quiet --skip-check CKV_AWS_144,CKV_AWS_18
