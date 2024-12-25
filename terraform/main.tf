@@ -2,6 +2,63 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# IAMロールの作成
+resource "aws_iam_role" "s3_replication_role" {
+  name = "s3-replication-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "s3.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+# IAMポリシーの作成
+resource "aws_iam_role_policy" "s3_replication_policy" {
+  name   = "s3-replication-policy"
+  role   = aws_iam_role.s3_replication_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetReplicationConfiguration",
+          "s3:ListBucket"
+        ]
+        Resource = "arn:aws:s3:::example-bucket-name"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ReplicateObject",
+          "s3:ReplicateDelete",
+          "s3:ReplicateTags"
+        ]
+        Resource = "arn:aws:s3:::replica-bucket-name/*"
+      }
+    ]
+  })
+}
+
+# レプリケーション先バケットの作成
+resource "aws_s3_bucket" "replica" {
+  bucket = "replica-bucket-name"
+  acl    = "private"
+
+  versioning {
+    enabled = true
+  }
+}
+
+# 元バケットの作成
 resource "aws_s3_bucket" "example" {
   bucket = "example-bucket-name"
   acl    = "private"
@@ -38,12 +95,27 @@ resource "aws_s3_bucket" "example" {
     }
   }
 
+  replication_configuration {
+    role = aws_iam_role.s3_replication_role.arn
+
+    rules {
+      id     = "ReplicationRule"
+      status = "Enabled"
+
+      destination {
+        bucket        = aws_s3_bucket.replica.arn
+        storage_class = "STANDARD"
+      }
+    }
+  }
+
   tags = {
     Name        = "example-bucket"
     Environment = "dev"
   }
 }
 
+# Public Access Blockの設定
 resource "aws_s3_bucket_public_access_block" "example" {
   bucket = aws_s3_bucket.example.id
 
@@ -51,17 +123,4 @@ resource "aws_s3_bucket_public_access_block" "example" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
-}
-
-resource "aws_s3_bucket_notification" "example" {
-  bucket = aws_s3_bucket.example.id
-
-  lambda_function {
-    lambda_function_arn = "arn:aws:lambda:us-east-1:123456789012:function:example-function"
-    events              = ["s3:ObjectCreated:*"]
-    filter {
-      prefix = "uploads/"
-      suffix = ".jpg"
-    }
-  }
 }
